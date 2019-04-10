@@ -27,10 +27,8 @@ import org.deeplearning4j.nn.conf.GradientNormalization;
 import org.deeplearning4j.nn.conf.MultiLayerConfiguration;
 import org.deeplearning4j.nn.conf.NeuralNetConfiguration;
 import org.deeplearning4j.nn.conf.WorkspaceMode;
-import org.deeplearning4j.nn.conf.layers.DenseLayer;
-import org.deeplearning4j.nn.conf.layers.GravesBidirectionalLSTM;
-import org.deeplearning4j.nn.conf.layers.GravesLSTM;
-import org.deeplearning4j.nn.conf.layers.RnnOutputLayer;
+import org.deeplearning4j.nn.conf.layers.*;
+import org.deeplearning4j.nn.conf.layers.recurrent.Bidirectional;
 import org.deeplearning4j.nn.conf.preprocessor.FeedForwardToRnnPreProcessor;
 import org.deeplearning4j.nn.conf.preprocessor.RnnToFeedForwardPreProcessor;
 import org.deeplearning4j.nn.multilayer.MultiLayerNetwork;
@@ -47,6 +45,7 @@ import org.nd4j.linalg.factory.Nd4j;
 import org.nd4j.linalg.indexing.INDArrayIndex;
 import org.nd4j.linalg.indexing.NDArrayIndex;
 import org.nd4j.linalg.learning.config.AdaGrad;
+import org.nd4j.linalg.learning.config.Adam;
 import org.nd4j.linalg.lossfunctions.LossFunctions;
 
 import at.medunigraz.imi.bst.n2c2.classifier.PatientBasedClassifier;
@@ -190,11 +189,12 @@ public class BILSTMC3GClassifier extends PatientBasedClassifier {
 
 		// seed for reproducibility
 		final int seed = 12345;
+		
 		MultiLayerConfiguration conf = new NeuralNetConfiguration.Builder().seed(seed)
-				.updater(AdaGrad.builder().learningRate(adaGradCore).build()).regularization(true).l2(l2Regulization)
+				.updater(new Adam(adaGradCore)).l2(l2Regulization)
 				.weightInit(WeightInit.XAVIER).gradientNormalization(GradientNormalization.ClipElementWiseAbsoluteValue)
-				.gradientNormalizationThreshold(1.0).trainingWorkspaceMode(WorkspaceMode.SINGLE)
-				.inferenceWorkspaceMode(WorkspaceMode.SINGLE).list()
+				.gradientNormalizationThreshold(1.0).trainingWorkspaceMode(WorkspaceMode.ENABLED)
+				.inferenceWorkspaceMode(WorkspaceMode.ENABLED).list()
 
 				.layer(0, new DenseLayer.Builder().activation(Activation.RELU).nIn(vectorSize).nOut(nOutFF)
 						.weightInit(WeightInit.RELU).updater(AdaGrad.builder().learningRate(adaGradDense).build())
@@ -212,12 +212,12 @@ public class BILSTMC3GClassifier extends PatientBasedClassifier {
 						.gradientNormalizationThreshold(10).build())
 
 				.layer(3,
-						new GravesBidirectionalLSTM.Builder().nIn(nOutFF).nOut(lstmLayerSize)
+						new Bidirectional(Bidirectional.Mode.ADD, new LSTM.Builder().nIn(nOutFF).nOut(lstmLayerSize)
 								.updater(AdaGrad.builder().learningRate(adaGradGraves).build())
-								.activation(Activation.SOFTSIGN).build())
+								.activation(Activation.SOFTSIGN).build()))
 
 				.layer(4,
-						new GravesLSTM.Builder().nIn(lstmLayerSize).nOut(lstmLayerSize)
+						new LSTM.Builder().nIn(lstmLayerSize).nOut(lstmLayerSize)
 								.updater(AdaGrad.builder().learningRate(adaGradGraves).build())
 								.activation(Activation.SOFTSIGN).build())
 
@@ -225,7 +225,7 @@ public class BILSTMC3GClassifier extends PatientBasedClassifier {
 						.lossFunction(LossFunctions.LossFunction.XENT).nIn(lstmLayerSize).nOut(13).build())
 
 				.inputPreProcessor(0, new RnnToFeedForwardPreProcessor())
-				.inputPreProcessor(3, new FeedForwardToRnnPreProcessor()).pretrain(false).backprop(true).build();
+				.inputPreProcessor(3, new FeedForwardToRnnPreProcessor()).build();
 
 		// .backpropType(BackpropType.TruncatedBPTT).tBPTTForwardLength(tbpttLength).tBPTTBackwardLength(tbpttLength)
 
@@ -266,7 +266,7 @@ public class BILSTMC3GClassifier extends PatientBasedClassifier {
 		Layer[] layers = net.getLayers();
 		int totalNumParams = 0;
 		for (int i = 0; i < layers.length; i++) {
-			int nParams = layers[i].numParams();
+			long nParams = layers[i].numParams();
 			LOG.info("Number of parameters in layer " + i + ": " + nParams);
 			totalNumParams += nParams;
 		}
@@ -287,7 +287,7 @@ public class BILSTMC3GClassifier extends PatientBasedClassifier {
 
 			while (fullSetIterator.hasNext()) {
 				DataSet t = fullSetIterator.next();
-				INDArray features = t.getFeatureMatrix();
+				INDArray features = t.getFeatures();
 				INDArray lables = t.getLabels();
 				INDArray inMask = t.getFeaturesMaskArray();
 				INDArray outMask = t.getLabelsMaskArray();
@@ -406,7 +406,7 @@ public class BILSTMC3GClassifier extends PatientBasedClassifier {
 		INDArray features = loadFeaturesForNarrative(patientNarrative, this.truncateLength);
 		INDArray networkOutput = net.output(features);
 
-		int timeSeriesLength = networkOutput.size(2);
+		long timeSeriesLength = networkOutput.size(2);
 		INDArray probabilitiesAtLastWord = networkOutput.get(NDArrayIndex.point(0), NDArrayIndex.all(), NDArrayIndex.point(timeSeriesLength - 1));
 
 		criterionIndex.forEach((c, idx) -> {

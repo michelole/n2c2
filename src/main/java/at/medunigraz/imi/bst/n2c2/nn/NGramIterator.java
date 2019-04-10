@@ -283,10 +283,9 @@ public class NGramIterator implements DataSetIterator {
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see org.nd4j.linalg.dataset.api.iterator.DataSetIterator#totalExamples()
 	 */
-	@Override
 	public int totalExamples() {
 		return this.patients.size();
 	}
@@ -355,26 +354,6 @@ public class NGramIterator implements DataSetIterator {
 	/*
 	 * (non-Javadoc)
 	 * 
-	 * @see org.nd4j.linalg.dataset.api.iterator.DataSetIterator#cursor()
-	 */
-	@Override
-	public int cursor() {
-		return cursor;
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see org.nd4j.linalg.dataset.api.iterator.DataSetIterator#numExamples()
-	 */
-	@Override
-	public int numExamples() {
-		return totalExamples();
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * 
 	 * @see
 	 * org.nd4j.linalg.dataset.api.iterator.DataSetIterator#setPreProcessor(org.
 	 * nd4j.linalg.dataset.api.DataSetPreProcessor)
@@ -402,7 +381,7 @@ public class NGramIterator implements DataSetIterator {
 	 */
 	@Override
 	public boolean hasNext() {
-		return cursor < numExamples();
+		return cursor < totalExamples();
 	}
 
 	/*
