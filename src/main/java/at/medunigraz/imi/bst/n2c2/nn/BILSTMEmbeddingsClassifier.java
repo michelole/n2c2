@@ -34,7 +34,7 @@ public class BILSTMEmbeddingsClassifier extends BaseNNClassifier {
 
 	private static final Logger LOG = LogManager.getLogger();
 
-	private static final File WORD_VECTORS_FILE = new File(BILSTMC3GClassifier.class.getClassLoader().getResource("vectors.tsv").getFile());
+	private static final File WORD_VECTORS_FILE = new File(BILSTMC3GClassifier.class.getClassLoader().getResource("vectors.vec").getFile());
 	private static final WordVectors WORD_VECTORS = WordVectorSerializer.loadStaticModel(WORD_VECTORS_FILE);
 
 
